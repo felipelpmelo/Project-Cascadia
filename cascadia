@@ -455,10 +455,14 @@ so this is a file in build/initramfs-root owned by some third uid."
     [ "$bad_gid" = "-" ] || note "note: some entries keep a non-root group ($bad_gid) -- harmless; rootfs and build ran under different groups"
 
     # Not fatal: a tree without these still boots and still gives both consoles.
+    # Looked up in the archive's entry list, not grepped out of its bytes:
+    # stage 2 names /usr/sbin/dropbear in its text, so a grep said "ok" for an
+    # image that had no dropbear (and no ssh) at all.
+    entries=$(cpio -it --quiet < "$CPIO" 2>/dev/null) || fail "could not list $CPIO (is cpio installed?)"
     for s in bin/peek usr/sbin/dropbear etc/dropbear/dropbear_ed25519_host_key sbin/mount.nfs etc/netconfig \
              usr/sbin/iw sbin/wpa_supplicant usr/bin/fbkeyboard usr/lib/bluetooth/bluetoothd \
-             usr/bin/aplay etc/asound.conf; do
-        if LC_ALL=C grep -aFq "$s" "$CPIO"; then note "ok:      $s"
+             usr/bin/aplay etc/asound.conf root/.ssh/authorized_keys; do
+        if printf '%s\n' "$entries" | grep -qxF "$s"; then note "ok:      $s"
         else note "missing: $s  -- ./cascadia rootfs installs it when docker is up"; fi
     done
 
