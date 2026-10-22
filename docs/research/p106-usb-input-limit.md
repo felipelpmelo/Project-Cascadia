@@ -43,6 +43,11 @@ device with an automatic revert on a temperature above 40 °C, a voltage above
   0x3d is below 0x22, write 0x22.  Nothing is written after a failed read;
   `-n` only reports.
 
+On the first boot with this, the gadget showed `MaxPower 500mA` on the host
+and, once the tool ran, the battery went from -380 mA to +34 mA ("Charging").
+On an NFS root the tool has to be on that root as well: stage 1 copies it
+there next to stage 2, or a root seeded before it existed skips it.
+
 Only the input limit changes.  Charge current, charge voltage, termination
 and the PMU's protections stay as iBoot and iOS left them.
 

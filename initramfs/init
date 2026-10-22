@@ -168,6 +168,10 @@ if [ -f /etc/nfsroot ] && [ -x /sbin/mount.nfs ]; then
             # existence check above still decides whether this is a Cascadia
             # root at all; a read-only export simply keeps its own copy.
             cp /sbin/p105-stage2 /newroot/sbin/p105-stage2 2>/dev/null || true
+            # The same for the boot helpers stage 2 runs from this image: a root
+            # seeded before one existed would skip it without a word (the input
+            # limit stayed at 100 mA on the first NFS boot that had it).
+            cp /sbin/pmu-input-limit /newroot/sbin/pmu-input-limit 2>/dev/null || true
             # The digitizer's bring-up belongs to the boot the same way:
             # z2-boot from this build, its firmware, and this iPad's own
             # calibration, which build/keep carries into the image
