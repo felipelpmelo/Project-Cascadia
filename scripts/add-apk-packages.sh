@@ -73,6 +73,9 @@ echo "==> ok: $checked ARM binaries"
 echo "==> installing into $TREE"
 ( cd "$EX" && find . \( -type f -o -type l \) -print | while read -r f; do
     mkdir -p "$TREE/$(dirname "$f")"
+    # A rerun meets its own read-only copies (mount.nfs is mode 4511), which
+    # cp -a cannot open for writing.  rm first: BSD cp has no --remove-destination.
+    rm -f "$TREE/$f"
     cp -a "$f" "$TREE/$f"
 done )
 echo "==> done.  Rebuild to embed:  ./cascadia build"
