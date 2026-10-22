@@ -243,6 +243,15 @@ if command -v fbkeyboard >/dev/null 2>&1; then
     fi
 fi
 
+# ------------------------------------------------------------ USB charging ---
+# The PMU keeps its input limit at 100 mA under Linux, below what the system
+# draws, so the battery ran down on a USB host.  Raise it to the 500 mA iOS
+# uses on the same cable when a USB source is present (pmu-input-limit.c);
+# the gadget declares the matching 500 mA (g_cdc.usb2_maxpower=500).
+if [ -x /sbin/pmu-input-limit ]; then
+    msg "P105: $(/sbin/pmu-input-limit 2>&1)"
+fi
+
 # --------------------------------------------------------------- buttons ---
 # Volume sets the speakers' volume or, with the side switch's orange showing,
 # the backlight; Hold puts the screen out and back (p105-keys.c).

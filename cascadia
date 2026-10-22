@@ -350,6 +350,11 @@ cmd_build() {
     in_docker "arm-linux-gnueabihf-gcc -static -Os -Wall -o build/initramfs-root/sbin/p105-keys tools/p105-keys.c"
     [ -s "$ROOT/build/initramfs-root/sbin/p105-keys" ] || fail "p105-keys did not build"
     note "ok: /sbin/p105-keys (static ARM)"
+    # /sbin/pmu-input-limit: 500 mA from a USB source instead of the PMU's
+    # 100 mA, so the battery charges on the cable.  Run by stage 2.
+    in_docker "arm-linux-gnueabihf-gcc -static -Os -Wall -o build/initramfs-root/sbin/pmu-input-limit tools/pmu-input-limit.c"
+    [ -s "$ROOT/build/initramfs-root/sbin/pmu-input-limit" ] || fail "pmu-input-limit did not build"
+    note "ok: /sbin/pmu-input-limit (static ARM)"
     # The NAND, read-only: nandctl pokes the PPN chips, iosnand serves iOS's
     # partitions as block devices (`ios mount`).  docs/research/p105-nand.md.
     in_docker "arm-linux-gnueabihf-gcc -static -Os -D_FILE_OFFSET_BITS=64 -o build/initramfs-root/sbin/nandctl tools/nand/nandctl.c tools/nand/ppn.c && arm-linux-gnueabihf-gcc -static -O2 -D_FILE_OFFSET_BITS=64 -o build/initramfs-root/sbin/iosnand tools/nand/iosnand.c tools/nand/ppn.c && arm-linux-gnueabihf-gcc -static -Os -D_FILE_OFFSET_BITS=64 -o build/initramfs-root/sbin/iosnandctl tools/nand/iosnandctl.c"

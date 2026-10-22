@@ -73,7 +73,7 @@
 		 *   ...:01 = host side (the Mac's enN)
 		 *   ...:02 = device side (usb0 here)
 		 */
-		bootargs = "earlycon=s3c6400,0x32500000 keep_bootcon lpj=5000000 root=/dev/ram0 rw rootwait panic=10 loglevel=8 ignore_loglevel g_cdc.host_addr=02:10:5a:05:00:01 g_cdc.dev_addr=02:10:5a:05:00:02";
+		bootargs = "earlycon=s3c6400,0x32500000 keep_bootcon lpj=5000000 root=/dev/ram0 rw rootwait panic=10 loglevel=8 ignore_loglevel g_cdc.host_addr=02:10:5a:05:00:01 g_cdc.dev_addr=02:10:5a:05:00:02 g_cdc.usb2_maxpower=500";
 
 		/*
 		 * Placeholders.  The loader MUST overwrite both before jumping;
