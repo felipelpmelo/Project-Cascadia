@@ -175,8 +175,9 @@ static int hdq_get_property(struct power_supply *psy, enum power_supply_property
 	mutex_lock(&b->lock);
 	ret = hdq_refresh(b);
 	if (psp == POWER_SUPPLY_PROP_PRESENT) {
-		val->intval = ret == 0;
-		ret = 0;
+		/* A refresh failure leaves battery presence unknown. */
+		if (!ret)
+			val->intval = 1;
 		goto out;
 	}
 	if (ret)
