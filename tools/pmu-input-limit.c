@@ -12,10 +12,15 @@
  * termination and the PMU's own protections are left as they are.  The USB
  * gadget declares the matching 500 mA (g_cdc.usb2_maxpower=500).
  *
- *   pmu-input-limit            set 500 mA if a USB source is present
- *   pmu-input-limit -n         only report
+ *   pmu-input-limit [-n] [500|1500]
  *
- * Prints one line, for /dev/kmsg.  Exit status 1 on any I2C error, with
+ * sets the limit (default 500 mA) if a USB source is present; -n only
+ * reports.  1500 mA is for a wall charger, which never enumerates the
+ * gadget: on a 5 V / 3 A charger it took the battery from -428 to +660 mA.
+ * p105-charge-watch picks the value.
+ *
+ * Prints one line, for /dev/kmsg.  Exit status 0 when the limit is set (or
+ * already was), 2 when there is no USB source, 1 on any I2C error, with
  * nothing written after a failed read.
  */
 #include <errno.h>
@@ -33,6 +38,7 @@
 #define  SOURCE_USB	0x08
 #define REG_ILIM	0x3d
 #define ILIM_500MA	0x22
+#define ILIM_1500MA	0x72
 
 static int smbus(int fd, char rw, unsigned char reg, unsigned char *val)
 {
@@ -58,9 +64,21 @@ static unsigned int ilim_ma(unsigned char code)
 
 int main(int argc, char **argv)
 {
-	int dry = argc > 1 && !strcmp(argv[1], "-n");
+	int dry = 0, fd, ret, i;
 	unsigned char src, ilim, want = ILIM_500MA;
-	int fd, ret;
+
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-n"))
+			dry = 1;
+		else if (!strcmp(argv[i], "500"))
+			want = ILIM_500MA;
+		else if (!strcmp(argv[i], "1500"))
+			want = ILIM_1500MA;
+		else {
+			printf("usage: pmu-input-limit [-n] [500|1500]\n");
+			return 1;
+		}
+	}
 
 	fd = open(PMU_BUS, O_RDWR);
 	if (fd < 0) {
@@ -82,14 +100,14 @@ int main(int argc, char **argv)
 	if (!(src & SOURCE_USB)) {
 		printf("pmu-input-limit: no USB source (0x0a=0x%02x), input limit left at %u mA\n",
 		       src, ilim_ma(ilim));
-		return 0;
+		return 2;
 	}
-	if (ilim >= want) {
+	if (ilim == want) {
 		printf("pmu-input-limit: USB source, input limit already %u mA\n", ilim_ma(ilim));
 		return 0;
 	}
 	if (dry) {
-		printf("pmu-input-limit: USB source, would raise input limit %u -> %u mA\n",
+		printf("pmu-input-limit: USB source, would set input limit %u -> %u mA\n",
 		       ilim_ma(ilim), ilim_ma(want));
 		return 0;
 	}

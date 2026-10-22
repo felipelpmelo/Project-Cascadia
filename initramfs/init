@@ -172,6 +172,7 @@ if [ -f /etc/nfsroot ] && [ -x /sbin/mount.nfs ]; then
             # seeded before one existed would skip it without a word (the input
             # limit stayed at 100 mA on the first NFS boot that had it).
             cp /sbin/pmu-input-limit /newroot/sbin/pmu-input-limit 2>/dev/null || true
+            cp /sbin/p105-charge-watch /newroot/sbin/p105-charge-watch 2>/dev/null || true
             # The digitizer's bring-up belongs to the boot the same way:
             # z2-boot from this build, its firmware, and this iPad's own
             # calibration, which build/keep carries into the image

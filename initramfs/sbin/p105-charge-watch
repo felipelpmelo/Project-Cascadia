@@ -1,0 +1,29 @@
+#!/bin/sh
+# p105-charge-watch -- keep the PMU's input current limit right for the cable.
+#
+# The PMU sets its input limit back to 100 mA on every attach, below what the
+# system draws.  Every 2 s this picks 500 mA for a USB host (the gadget is
+# configured) or 1500 mA for a wall charger (a source that has not enumerated
+# the gadget for 6 s), and pmu-input-limit writes it when it differs.
+# Started by stage 2; changes go to /dev/kmsg.
+
+state() { cat /sys/class/udc/*/state 2>/dev/null; }
+
+idle=0		# polls with a source present and the gadget not configured
+while :; do
+    if [ "$(state)" = configured ]; then
+        idle=0
+        want=500
+    else
+        idle=$((idle + 1))
+        if [ $idle -ge 3 ]; then want=1500; else want=500; fi
+    fi
+    out=$(/sbin/pmu-input-limit "$want")
+    # No source: count again from the next attach.
+    [ $? -eq 2 ] && idle=0
+    # Only actual changes are logged, not every poll.
+    case "$out" in
+        *"now "*) echo "P105: $out" > /dev/kmsg ;;
+    esac
+    sleep 2
+done

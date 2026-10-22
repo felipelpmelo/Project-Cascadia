@@ -34,14 +34,44 @@ device with an automatic revert on a temperature above 40 °C, a voltage above
 | voltage | 4.142 V | 4.178 -> 4.185 V |
 | temperature | 34.2 °C | 34.2 -> 34.6 °C |
 
+## Wall chargers
+
+Measured the same day, Linux booted from RAM and reached over Wi-Fi, on a
+generic 5 V / 3 A charger (USB-A):
+
+| | no source | wall charger | PC |
+|---|---|---|---|
+| 0x0a | 0x27 | 0x6f | 0x6f |
+| gadget (`/sys/class/udc/*/state`) | not attached | not attached | configured |
+| 0x3d after attach | | 0x02 | 0x02 |
+
+The PMU reads a wall charger exactly as a PC, and it puts 0x3d back to 0x02
+(100 mA) on every attach.  The gadget tells them apart: a host enumerates it,
+a dedicated charger never does.  Input-limit steps on the charger, each held
+for a minute with an automatic revert, temperature 35.9 -> 36.2 °C:
+
+| 0x3d | limit | battery current |
+|---|---|---|
+| 0x02 | 100 mA | -428 mA |
+| 0x4a | 1000 mA | +494 mA |
+| 0x72 | 1500 mA | +660 mA |
+| 0xa2 | 2100 mA | +660 mA |
+
+Above 1500 mA nothing more reached the battery at 4.14 V.  1500 mA is also
+the most a BC1.2 dedicated charging port is required to supply.
+
 ## What this tree does now
 
 - `g_cdc.usb2_maxpower=500` in the bootargs, with PR #8's
   `patches/tree/0003-usb-gadget-cdc2-usb2-maxpower.patch`: the gadget declares
   the 500 mA it draws.
-- `tools/pmu-input-limit.c`, run by stage 2: if 0x0a reports a USB source and
-  0x3d is below 0x22, write 0x22.  Nothing is written after a failed read;
-  `-n` only reports.
+- `tools/pmu-input-limit.c [500|1500]`: if 0x0a reports a USB source, write
+  that limit to 0x3d.  Nothing is written after a failed read; `-n` only
+  reports.
+- `initramfs/sbin/p105-charge-watch`, started by stage 2: every 2 s, 500 mA
+  while the gadget is configured, 1500 mA once a source has gone 6 s without
+  enumerating it.  It follows unplugging and replugging.  With it the charger
+  gave +769 mA, and moving the cable back to the PC returned to 500 mA.
 
 On the first boot with this, the gadget showed `MaxPower 500mA` on the host
 and, once the tool ran, the battery went from -380 mA to +34 mA ("Charging").
@@ -53,7 +83,7 @@ and the PMU's protections stay as iBoot and iOS left them.
 
 ## Not done
 
-- A wall charger is still treated as a 500 mA USB source.  iOS identifies
-  adapters through Tristar (`brick_id`, ADC channel 6) and allows up to the
-  ADT's `usb-input-limit-max` (2100 mA); that needs adapter detection first.
-- No handling of unplug and replug after boot: the limit is set once.
+- Apple adapters are treated like any charger (1500 mA).  iOS identifies
+  them through Tristar (`brick_id`, ADC channel 6) and allows up to the
+  ADT's `usb-input-limit-max` (2100 mA).
+- A suspended USB host keeps its 500 mA here; USB allows 2.5 mA then.
