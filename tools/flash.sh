@@ -54,6 +54,14 @@ done
 
 fail() { echo "error: $*" >&2; exit 1; }
 
+# The preserved image is p105's iBEC, and iBEC sets the board's GPIO pads: on
+# p106 it would leave the modem's pins as p105 has them (docs/P106.md).
+. "$ROOT/scripts/board.sh"
+if [ "$IBEC_WHICH" = "preserved known-good" ] && [ "$BOARD" != p105 ] && [ -z "${KNOWN_GOOD_IBEC:-}" ]; then
+    fail "--known-good is p105's preserved iBEC; this tree builds for $BOARD ($MODEL).
+Pass KNOWN_GOOD_IBEC=/path/to/an-${BOARD}-iBEC.dfu, or flash the fresh build."
+fi
+
 # kDFU cannot be handed an encrypted image.  Once iOS has booted, the AES GID
 # key is no longer usable, so the KBAG of a stock-layout img3 decrypts to
 # nothing and the pwned iBSS jumps into garbage.  Nothing says so at the time:

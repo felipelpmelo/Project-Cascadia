@@ -42,10 +42,11 @@
 # is identical on a macOS and a Linux host and nothing outside this repository
 # and the user's own IPSW is needed.
 #
-# Pinned to iOS 8.4.1 / 12H321 and to iPad2,5.  That is not laziness: the auto-go
-# hook patches a specific address inside this exact iBEC build
-# (scripts/patch-ibec-autogo.py explains which and why), and the decryption keys
-# below are that build's.  Another firmware needs both re-derived.
+# Pinned to iOS 8.4.1 / 12H321.  That is not laziness: the auto-go hook patches a
+# specific address inside this exact iBEC build (scripts/patch-ibec-autogo.py
+# explains which and why), and the decryption keys are that build's.  Another
+# firmware needs both re-derived.  The board (p105 = iPad2,5, p106 = iPad2,6) is
+# picked in scripts/board.sh; both boards' 12H321 iBEC carry the same code.
 #
 # Why an auto-go hook at all, rather than iBoot32Patcher's own -c "go": that
 # command runs as soon as it is parsed.  The 64 KB memory probe survived it; a
@@ -55,18 +56,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IPSW="${IPSW:-$ROOT/ipad25.ipsw}"
+# IPSW keys, rootfs name and reference hashes for the selected board.
+. "$ROOT/scripts/board.sh"
+IPSW="${IPSW:-$ROOT/$IPSW_NAME}"
 OUT="$ROOT/build/firmware"
 
-# Public firmware keys for iPad2,5 / 12H321.  These are not secret: they are
-# published in the community key database and are useless without the device.
-IBSS_IV="b21abc8689b0dea8f6e613f9f970e241"
-IBSS_KEY="b9ed63e4a31f5d9d4d7dddc527e65fd31d1ea48c70204e6b44551c1e6dfc52b5"
-IBEC_IV="8460cab6348e74ba7134ba0f9462b632"
-IBEC_KEY="485ddb5f7e70cecfc25c036f812641b9e55bd97783de1488306e3a80abf6950b"
-ROOTFS_DMG="058-24036-023.dmg"
-ROOTFS_KEY="21862ddcc49a861ffda17f7c6eca65355d2d1e762026cca60aabc726cd48b9e4cff214ff"
-MTPROPS=/usr/share/firmware/multitouch/P105.mtprops
+# Per board in iOS (scripts/board.sh); always P105.mtprops here, the name the
+# Linux side (tools/z2-boot.c, ./cascadia build) loads.
+MTPROPS="$MTPROPS_SRC"
 WIFI_FW=/usr/share/firmware/wifi/4334b1/borg.trx
 # The NVRAM goes with the firmware, per module.  The chip names itself
 # "s=B3 M=HEIN m=2.6 V=t" (4334B3, TDK), and the iOS 8.4.1 Wi-Fi driver's own
@@ -105,16 +102,15 @@ BOOTARGS="${BOOTARGS:-cs_enforcement_disable=1 debug=0x14}"
 # and that is expected rather than a problem: the auto-go script changed in
 # between.  This build has since been flashed and the device booted from it, so
 # it is the tested one now.
-KNOWN_IBEC_PLAIN_MD5="b7e502c0262660b68adac4fe4e764b1b"
-KNOWN_IBSS_MD5="8b6dcc510c0ab303d67495978f4eb523"
-# The same bytes iOS itself has at that path on the iPad (read there over ssh
-# and compared).
-KNOWN_MTPROPS_MD5="807fdbc8816df68cf5d57a3964bd8400"
+#
+# The mtprops one is of the same bytes iOS itself has at that path on the iPad
+# (read there over ssh and compared).  The values are in scripts/board.sh.
 
 fail() { echo "error: $*" >&2; exit 1; }
 md5of() { md5sum "$1" | cut -d' ' -f1; }
 
-[ -f "$IPSW" ] || fail "no IPSW at $IPSW -- pass IPSW=/path/to/iPad2,5_8.4.1_12H321_Restore.ipsw"
+echo "==> board: $BOARD ($MODEL)"
+[ -f "$IPSW" ] || fail "no IPSW at $IPSW -- pass IPSW=/path/to/$IPSW_NAME"
 
 PATCHER="${PATCHER:-/usr/local/bin/iBoot32Patcher}"
 command -v "$PATCHER" >/dev/null 2>&1 || [ -x "$PATCHER" ] \
@@ -125,10 +121,10 @@ mkdir -p "$OUT"
 build_one() {
     local name="$1" iv="$2" key="$3"
     echo "==> $name: extract, decrypt, patch"
-    unzip -o -j "$IPSW" "Firmware/dfu/${name}.p105.RELEASE.dfu" -d "$OUT" >/dev/null \
-        || fail "$name not found in $IPSW -- is this an iPad2,5 8.4.1 IPSW?"
+    unzip -o -j "$IPSW" "Firmware/dfu/${name}.${BOARD}.RELEASE.dfu" -d "$OUT" >/dev/null \
+        || fail "$name not found in $IPSW -- is this an $MODEL 8.4.1 IPSW?"
     python3 "$ROOT/scripts/img3decrypt.py" \
-        "$OUT/${name}.p105.RELEASE.dfu" "$OUT/${name}.dec" "$iv" "$key"
+        "$OUT/${name}.${BOARD}.RELEASE.dfu" "$OUT/${name}.dec" "$iv" "$key"
     "$PATCHER" "$OUT/${name}.dec" "$OUT/${name}.patched" -b "$BOOTARGS" >/dev/null
 }
 
@@ -143,11 +139,11 @@ echo "==> iBEC: auto-go hook"
 python3 "$ROOT/scripts/patch-ibec-autogo.py" "$OUT/iBEC.patched" "$OUT/iBEC.autogo"
 echo "==> iBEC: repack as img3 (encrypted -- the checkm8 route)"
 python3 "$ROOT/scripts/img3encrypt.py" \
-    "$OUT/iBEC.p105.RELEASE.dfu" "$OUT/iBEC.autogo" \
+    "$OUT/iBEC.${BOARD}.RELEASE.dfu" "$OUT/iBEC.autogo" \
     "$OUT/iBEC.patched.autogo.dfu" "$IBEC_IV" "$IBEC_KEY"
 echo "==> iBEC: repack as img3 (plaintext -- the kDFU route)"
 python3 "$ROOT/scripts/img3pack.py" \
-    "$OUT/iBEC.p105.RELEASE.dfu" "$OUT/iBEC.autogo" \
+    "$OUT/iBEC.${BOARD}.RELEASE.dfu" "$OUT/iBEC.autogo" \
     "$OUT/iBEC.patched.autogo.plain.dfu"
 
 echo "==> touch, Wi-Fi and Bluetooth firmware out of the root filesystem"
@@ -164,24 +160,49 @@ if [ "$BT_MODULE" = "Borg TDK" ]; then
         | sha256sum -c --quiet - || fail "BCM4334B0.hcd is not 12H321's Borg TDK patchram"
 fi
 
-echo "==> GPU microkernel out of the kernelcache"
-python3 "$ROOT/scripts/extract-sgx-firmware.py" "$IPSW" "$OUT/sgx543.fw" \
-    "$OUT/kernelcache.12H321.macho"
+# Always p105's kernelcache: tools/sgx/mkpack.py works on that kernelcache's
+# addresses, and other boards prelink the same GPU kext elsewhere
+# (scripts/board.sh).  On p105 it comes out of the IPSW; on other boards
+# ./cascadia firmware fetches the one file into build/firmware first.
+echo "==> GPU microkernel out of p105's kernelcache"
+if [ "$BOARD" = p105 ]; then
+    SGX_SRC="$IPSW"
+else
+    SGX_SRC="${SGX_KERNELCACHE:-$OUT/$P105_KERNELCACHE}"
+fi
+if [ -f "$SGX_SRC" ]; then
+    python3 "$ROOT/scripts/extract-sgx-firmware.py" "$SGX_SRC" "$OUT/sgx543.fw" \
+        "$OUT/kernelcache.12H321.macho"
+else
+    echo "    note: no $SGX_SRC -- skipping the GPU firmware; ./cascadia firmware fetches it"
+fi
 
 # The 3D pass's event PDS program: a template in iOS's GL driver
 # (IMGSGX543GLDriver, in the dyld shared cache), 0xa8 bytes the 2D pack
 # fills in (tools/sgx/pds.py).  Only that range is read; the cache is 432 MB.
+# The offset is p105's cache.  Another board's cache may lay the GL driver
+# out elsewhere, so there a mismatch only costs the 3D pass, not the build.
 echo "==> GPU event program out of the GL driver"
-python3 "$ROOT/scripts/rootfs-extract.py" "$IPSW" "$ROOTFS_DMG" "$ROOTFS_KEY" \
-    "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7@46ebd8+a8" "$OUT/gl-event.pds"
-echo "a1b855d41993968b40005e886f7ac11c8c3abb42aa0987e005eec4e6cb2a2285  $OUT/gl-event.pds" \
-    | sha256sum -c --quiet - || fail "gl-event.pds is not the 12H321 GL driver's"
+GL_EVENT_SHA256="a1b855d41993968b40005e886f7ac11c8c3abb42aa0987e005eec4e6cb2a2285"
+if python3 "$ROOT/scripts/rootfs-extract.py" "$IPSW" "$ROOTFS_DMG" "$ROOTFS_KEY" \
+        "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7@46ebd8+a8" "$OUT/gl-event.pds" \
+    && echo "$GL_EVENT_SHA256  $OUT/gl-event.pds" | sha256sum -c --quiet - 2>/dev/null; then
+    :
+elif [ "$BOARD" = p105 ]; then
+    fail "gl-event.pds is not the 12H321 GL driver's"
+else
+    echo "    note: $BOARD's dyld cache has no 12H321 GL event program at p105's offset;"
+    echo "          the 3D pass (./cascadia gpu) needs it, everything else does not"
+    rm -f "$OUT/gl-event.pds"
+fi
 
 echo
 rc=0
 for pair in "iBSS.patched:$KNOWN_IBSS_MD5" "iBEC.autogo:$KNOWN_IBEC_PLAIN_MD5" "P105.mtprops:$KNOWN_MTPROPS_MD5"; do
     f=${pair%%:*}; want=${pair##*:}; got=$(md5of "$OUT/$f")
-    if [ "$got" = "$want" ]; then
+    if [ -z "$want" ]; then
+        echo "    new:  $f is $got -- no $BOARD reference yet (scripts/board.sh)"
+    elif [ "$got" = "$want" ]; then
         echo "    ok: $f reproduces the reference byte for byte"
     else
         echo "    MISMATCH: $f is $got, expected $want"
@@ -195,7 +216,7 @@ if [ "$rc" -ne 0 ]; then
     output and the auto-go patch are each deterministic, so a mismatch here
     points at one of them rather than at noise.
 EOF
-else
+elif [ "$BOARD" = p105 ]; then
     cat <<'EOF'
 
     This differs from the preserved August .dfu, because the auto-go script
@@ -203,9 +224,18 @@ else
     booted from it.  ./cascadia flash --known-good still sends the old one if
     you ever need to tell a bad build from a bad bench.
 EOF
+elif [ -z "$KNOWN_IBSS_MD5" ] || [ -z "$KNOWN_IBEC_PLAIN_MD5" ]; then
+    cat <<EOF
+
+    No $BOARD device has booted from these yet.  Once one has, the hashes
+    printed above become the references in scripts/board.sh.
+EOF
 fi
 
 echo
 ls -l "$OUT/iBSS.patched" "$OUT/iBEC.patched.autogo.dfu" \
       "$OUT/iBEC.patched.autogo.plain.dfu" "$OUT/P105.mtprops" "$OUT/brcmfmac4334.bin" \
-      "$OUT/BCM4334B0.hcd" "$OUT/sgx543.fw" "$OUT/kernelcache.12H321.macho" "$OUT/gl-event.pds"
+      "$OUT/BCM4334B0.hcd"
+for f in sgx543.fw kernelcache.12H321.macho gl-event.pds; do
+    if [ -f "$OUT/$f" ]; then ls -l "$OUT/$f"; else echo "    (no $f -- GPU only)"; fi
+done

@@ -37,6 +37,7 @@ including the parts that didn't work.
 | Device | Model | Chip | Board ID |
 |--------|-------|------|----------|
 | iPad mini 1 (Wi-Fi) | iPad2,5 / A1432 | Apple A5 (S5L8942X) | p105ap |
+| iPad mini 1 (GSM) | iPad2,6 / A1454 | Apple A5 (S5L8942X) | p106ap — [docs/P106.md](docs/P106.md) |
 
 ## Current Status
 

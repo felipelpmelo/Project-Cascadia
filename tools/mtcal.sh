@@ -98,7 +98,11 @@ ios() {
 
 echo "==> connecting (iOS root password, 'alpine' unless changed)"
 model=$(ios uname -m) || fail "no ssh to iOS on $HOST:$PORT -- is the iPad in iOS, unlocked, with OpenSSH installed?"
-[ "$model" = "iPad2,5" ] || fail "this is a $model; this port is for iPad2,5 (p105ap)"
+# The same digitizer on both (the p106 ADT also says multi-touch,p105).
+case "$model" in
+    iPad2,5|iPad2,6) ;;
+    *) fail "this is a $model; this port is for iPad2,5 (p105ap) and iPad2,6 (p106ap)" ;;
+esac
 echo "    $model"
 
 # rm before writing: iOS caches a binary's signature by vnode, and a file

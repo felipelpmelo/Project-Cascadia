@@ -52,3 +52,8 @@ tools/sgx/lib/libsdlshot.so
 tools/sgx/lib/replay
 tools/sgx/lib/cnttest
 tools/sgx/lib/pbtest
+
+# Local board choice (scripts/board.sh); without it the tree builds for p105
+.board
+# Per-unit settings (./cascadia)
+device.env

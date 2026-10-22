@@ -3,6 +3,10 @@
 
     python3 scripts/extract-sgx-firmware.py <ipsw> <out.fw> [<kernelcache.out>]
 
+<ipsw> is the iPad2,5 12H321 IPSW, or just its kernelcache.release.p105
+(the img3 file on its own).  Other boards use p105's kernelcache too:
+scripts/board.sh says why.
+
 The SGX543MP2 runs a microkernel that iOS ships inside its GPU kext,
 com.apple.driver.IMGSGX543, in the kernelcache.  It is Apple's and
 Imagination's firmware, so this repository does not carry it; like the touch
@@ -112,11 +116,15 @@ def lzss(comp, outlen):
 
 
 def kernelcache(ipsw):
-    try:
-        with zipfile.ZipFile(ipsw) as z:
-            img3 = z.read(KERNELCACHE)
-    except KeyError:
-        fail(f"{KERNELCACHE} not in {ipsw} -- is this an iPad2,5 IPSW?")
+    if not zipfile.is_zipfile(ipsw):
+        with open(ipsw, "rb") as f:
+            img3 = f.read()
+    else:
+        try:
+            with zipfile.ZipFile(ipsw) as z:
+                img3 = z.read(KERNELCACHE)
+        except KeyError:
+            fail(f"{KERNELCACHE} not in {ipsw} -- is this an iPad2,5 IPSW?")
     ciphertext, plain_len = img3decrypt().parse_img3(img3)
     plain = AES.new(bytes.fromhex(KC_KEY), AES.MODE_CBC,
                     bytes.fromhex(KC_IV)).decrypt(ciphertext)[:plain_len]

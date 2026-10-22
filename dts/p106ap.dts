@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Apple iPad mini, 1st generation, GSM -- iPad2,6 / P106AP / S5L8942X (Apple A5).
+ *
+ * The p105 tree plus a new identity, and nothing else.  Compared on the
+ * 12H321 Apple Device Trees (docs/P106.md), p106 is p105 with:
+ *
+ *   /baseband, arm-io/usb-complex/usb-ehci/hsic-baseband
+ *       the Mav5 modem ("baseband,n41") on EHCI port 2 over HSIC, with SoC
+ *       GPIOs 8, 10, 12, 13, 15, 17, 23, 24 and PMU GPIOs 4 (bb_on) and
+ *       8 (pmu_exton), PMU LDO 0x20e
+ *   arm-io/uart4 (debug)
+ *       a UART on SoC GPIOs 128 and 130
+ *
+ * Every node this port describes -- AIC, timers, GPIO, buttons, PMU, touch,
+ * Wi-Fi, Bluetooth, audio, backlight, display, SGX, USB device -- has the
+ * same registers, interrupts and pins on both boards, so it is included as is.
+ * The modem is left out: nothing here powers it, so it stays as iBoot left it.
+ */
+
+/include/ "p105ap.dts"
+
+/ {
+	compatible = "apple,p106ap", "apple,s5l8942x", "apple,s5l8940x", "apple,arm";
+	model = "Apple iPad mini (iPad2,6)";
+};
